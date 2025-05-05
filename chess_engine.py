@@ -60,7 +60,7 @@ random.seed(42)
 
 
 class ChessEngine:
-    def __init__(self, depth=2):
+    def __init__(self, depth=5):
         """
         Initialize the chess engine.
         
@@ -216,6 +216,16 @@ class ChessEngine:
                     break
             self.transposition_table[key] = {"depth": depth, "value": min_eval}
             return min_eval
+    # def quiesce(self, board, alpha, beta):
+    #     currentPosition = self.evaluate_position(board);
+
+    #     if (currentPosition >= beta):
+    #         return beta
+    #     if (alpha < currentPosition):
+    #         alpha = currentPosition
+
+    #     for move in board.legal_moves:
+    #         if (board.is_capture)
 
     def order_moves(self, board):
         captures = []
@@ -237,6 +247,7 @@ class ChessEngine:
         Returns:
             chess.Move: The best move found
         """
+        self.transposition_table.clear()
         best_move = None
         best_value = -float('inf')
         alpha = -float('inf')
