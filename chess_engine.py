@@ -88,31 +88,19 @@ class ChessEngine:
         }
 
     def compute_zobrist_hash(self, board):
-        h = 0
+        """
+        Return a 64‑bit Zobrist hash for *board*.
 
-        # Pieces
-        for square in chess.SQUARES:
-            piece = board.piece_at(square)
-            if piece:
-                h ^= self.zobrist_table[(piece.piece_type, piece.color, square)]
+        • python‑chess ≥ 1.8:  board.transposition_key()  (incremental, fast)  
+        • older versions:      hash(board._transposition_key())  (still OK)
+        """
+        try:
+            return board.transposition_key()          # correct spelling
+        except AttributeError:
+            # Legacy fallback – one XOR away from the same value.
+            return hash(board._transposition_key())   # :contentReference[oaicite:0]{index=0}
 
-        # Side to move
-        if board.turn == chess.BLACK:
-            h ^= self.zobrist_side
 
-        # Castling rights (convert to int)
-        castling = 0
-        if board.has_kingside_castling_rights(chess.WHITE): castling |= 1
-        if board.has_queenside_castling_rights(chess.WHITE): castling |= 2
-        if board.has_kingside_castling_rights(chess.BLACK): castling |= 4
-        if board.has_queenside_castling_rights(chess.BLACK): castling |= 8
-        h ^= self.zobrist_castling[castling]
-
-        # En passant square
-        if board.ep_square is not None:
-            h ^= self.zobrist_ep[board.ep_square]
-
-        return h
 
     
     def evaluate_position(self, board):
