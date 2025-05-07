@@ -1,318 +1,275 @@
 import chess
 import random
 
-# Piece position evaluation tables
-king_mid = [0, 0,  0,  0,   0,  0,  0, 0,
-    0, 0,  0,  0,   0,  0,  0, 0,
-    0, 0,  0,  0,   0,  0,  0, 0,
-    0, 0,  0,  0,   0,  0,  0, 0,
-    0, 0,  0,  0,   0,  0,  0, 0,
-    0, 0,  0,  0,   0,  0,  0, 0,
-    0, 0,  0, -5,  -5, -5,  0, 0,
-    0, 0, 10, -5,  -5, -5, 10, 0]
+# --- Piece‑square tables (kept in snake_case because they are constants) ---
+king_mid = [0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, -5, -5, -5, 0, 0,
+            0, 0, 10, -5, -5, -5, 10, 0]
 
 queen_mid = [-20, -10, -10, -5, -5, -10, -10, -20,
-    -10,   0,   0,  0,  0,   0,   0, -10,
-    -10,   0,   5,  5,  5,   5,   0, -10,
-    -5,   0,   5,  5,  5,   5,   0,  -5,
-    -5,   0,   5,  5,  5,   5,   0,  -5,
-    -10,   5,   5,  5,  5,   5,   0, -10,
-    -10,   0,   5,  0,  0,   0,   0, -10,
-    -20, -10, -10,  0,  0, -10, -10, -20]
+             -10, 0, 0, 0, 0, 0, 0, -10,
+             -10, 0, 5, 5, 5, 5, 0, -10,
+             -5, 0, 5, 5, 5, 5, 0, -5,
+             -5, 0, 5, 5, 5, 5, 0, -5,
+             -10, 5, 5, 5, 5, 5, 0, -10,
+             -10, 0, 5, 0, 0, 0, 0, -10,
+             -20, -10, -10, 0, 0, -10, -10, -20]
 
-rook_mid = [10,  10,  10,  10,  10,  10,  10,  10,
-    10,  10,  10,  10,  10,  10,  10,  10,
-    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,  10,  10,   0,   0,   0,
-    0,   0,   0,  10,  10,   5,   0,   0]
+rook_mid = [10, 10, 10, 10, 10, 10, 10, 10,
+            10, 10, 10, 10, 10, 10, 10, 10,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 10, 10, 0, 0, 0,
+            0, 0, 0, 10, 10, 5, 0, 0]
 
-bishop_mid = [0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,
-    0,  10,   0,   0,   0,   0,  10,   0,
-    5,   0,  10,   0,   0,  10,   0,   5,
-    0,  10,   0,  10,  10,   0,  10,   0,
-    0,  10,   0,  10,  10,   0,  10,   0,
-    0,   0, -10,   0,   0, -10,   0,   0]
+bishop_mid = [0, 0, 0, 0, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0,
+              0, 10, 0, 0, 0, 0, 10, 0,
+              5, 0, 10, 0, 0, 10, 0, 5,
+              0, 10, 0, 10, 10, 0, 10, 0,
+              0, 10, 0, 10, 10, 0, 10, 0,
+              0, 0, -10, 0, 0, -10, 0, 0]
 
-knight_mid = [-5,  -5, -5, -5, -5, -5,  -5, -5,
-    -5,   0,  0, 10, 10,  0,   0, -5,
-    -5,   5, 10, 10, 10, 10,   5, -5,
-    -5,   5, 10, 15, 15, 10,   5, -5,
-    -5,   5, 10, 15, 15, 10,   5, -5,
-    -5,   5, 10, 10, 10, 10,   5, -5,
-    -5,   0,  0,  5,  5,  0,   0, -5,
-    -5, -10, -5, -5, -5, -5, -10, -5]
+knight_mid = [-5, -5, -5, -5, -5, -5, -5, -5,
+              -5, 0, 0, 10, 10, 0, 0, -5,
+              -5, 5, 10, 10, 10, 10, 5, -5,
+              -5, 5, 10, 15, 15, 10, 5, -5,
+              -5, 5, 10, 15, 15, 10, 5, -5,
+              -5, 5, 10, 10, 10, 10, 5, -5,
+              -5, 0, 0, 5, 5, 0, 0, -5,
+              -5, -10, -5, -5, -5, -5, -10, -5]
 
-pawn_mid = [0,   0,   0,   0,   0,   0,   0,   0,
-    30,  30,  30,  40,  40,  30,  30,  30,
-    20,  20,  20,  30,  30,  30,  20,  20,
-    10,  10,  15,  25,  25,  15,  10,  10,
-    5,   5,   5,  20,  20,   5,   5,   5,
-    5,   0,   0,   5,   5,   0,   0,   5,
-    5,   5,   5, -10, -10,   5,   5,   5,
-    0,   0,   0,   0,   0,   0,   0,   0]
+pawn_mid = [0, 0, 0, 0, 0, 0, 0, 0,
+            30, 30, 30, 40, 40, 30, 30, 30,
+            20, 20, 20, 30, 30, 30, 20, 20,
+            10, 10, 15, 25, 25, 15, 10, 10,
+            5, 5, 5, 20, 20, 5, 5, 5,
+            5, 0, 0, 5, 5, 0, 0, 5,
+            5, 5, 5, -10, -10, 5, 5, 5,
+            0, 0, 0, 0, 0, 0, 0, 0]
 
 random.seed(42)
 
 
 class ChessEngine:
-    def __init__(self, depth=5):
-        """
-        Initialize the chess engine.
-        
-        Args:
-            depth (int): The depth to search in the game tree
-        """
-        self.depth = depth
-        self.transposition_table = {}
+    """Simple minimax chess engine with incremental evaluation and camelCase naming."""
 
-        self.zobrist_table = {
+    # --- static tables ---
+    pieceValues = {
+        chess.PAWN: 100,
+        chess.KNIGHT: 320,
+        chess.BISHOP: 330,
+        chess.ROOK: 500,
+        chess.QUEEN: 900,
+        chess.KING: 0,
+    }
+
+    pieceTables = {
+        chess.PAWN: pawn_mid,
+        chess.KNIGHT: knight_mid,
+        chess.BISHOP: bishop_mid,
+        chess.ROOK: rook_mid,
+        chess.QUEEN: queen_mid,
+        chess.KING: king_mid,
+    }
+
+    def __init__(self, depth: int = 5):
+        self.depth = depth
+        self.transpositionTable: dict[int, dict] = {}
+
+        # Random numbers only needed if you fall back to custom hashing
+        self.zobristTable = {
             (piece_type, color, square): random.getrandbits(64)
-            for piece_type in range(1, 7)  # PAWN to KING
+            for piece_type in range(1, 7)
             for color in [chess.WHITE, chess.BLACK]
             for square in chess.SQUARES
         }
+        self.zobristSide = random.getrandbits(64)
 
-        self.zobrist_side = random.getrandbits(64)
-        self.zobrist_castling = {
-            flag: random.getrandbits(64)
-            for flag in range(16)  # 4 castling rights = 2^4 = 16 combos
-        }
-        self.zobrist_ep = {
-            square: random.getrandbits(64)
-            for square in range(64)
-        }
-
-    def compute_zobrist_hash(self, board):
-        """
-        Return a 64‑bit Zobrist hash for *board*.
-
-        • python‑chess ≥ 1.8:  board.transposition_key()  (incremental, fast)  
-        • older versions:      hash(board._transposition_key())  (still OK)
-        """
+    # ------------------------------------------------------------------
+    # Hashing
+    # ------------------------------------------------------------------
+    def computeZobristHash(self, board: chess.Board) -> int:
+        """Return a 64‑bit hash for *board* using python‑chess' incremental key."""
         try:
-            return board.transposition_key()          # correct spelling
+            return board.transposition_key()  # fast path (python‑chess ≥ 1.8)
         except AttributeError:
-            # Legacy fallback – one XOR away from the same value.
-            return hash(board._transposition_key())   # :contentReference[oaicite:0]{index=0}
+            # Fallback for old versions
+            return hash(board._transposition_key())
 
-
-
-    
-    def evaluate_position(self, board):
-        """
-        Evaluate the current board position.
-        
-        Args:
-            board (chess.Board): The current board position
-            
-        Returns:
-            float: A score for the position (positive is good for white)
-        """
-        # Simple material counting evaluation
-        if board.is_checkmate():
-            # If checkmate, return a large value
-            return -10000 if board.turn else 10000
-        
-        # Count material
+    # ------------------------------------------------------------------
+    # Incremental evaluation helpers
+    # ------------------------------------------------------------------
+    def fullEvaluate(self, board: chess.Board) -> int:
+        """Full evaluation of *board* (material + piece‑square tables)."""
         score = 0
-        piece_values = {
-            chess.PAWN: 100,
-            chess.KNIGHT: 320,
-            chess.BISHOP: 330,
-            chess.ROOK: 500,
-            chess.QUEEN: 900,
-            chess.KING: 0  # King isn't counted in material
-        }
-
-        piece_tables = {
-            chess.PAWN: pawn_mid,
-            chess.KNIGHT: knight_mid,
-            chess.BISHOP: bishop_mid,
-            chess.ROOK: rook_mid,
-            chess.QUEEN: queen_mid,
-            chess.KING: king_mid
-        }
-        
-        for square in chess.SQUARES:
-            piece = board.piece_at(square)
-            if piece:
-                value = piece_values[piece.piece_type]
-                # Use piece tables to evaluate position
-                table = piece_tables[piece.piece_type]
-                index = square if piece.color == chess.WHITE else chess.square_mirror(square)
-                score += table[index]
-                if piece.color == chess.BLACK:
-                    score += value
-                else:
-                    score -= value
+        for sq in chess.SQUARES:
+            piece = board.piece_at(sq)
+            if not piece:
+                continue
+            factor = 1 if piece.color == chess.BLACK else -1  # engine score: positive = Black
+            idx = sq if piece.color == chess.WHITE else chess.square_mirror(sq)
+            score += factor * (
+                self.pieceValues[piece.piece_type] + self.pieceTables[piece.piece_type][idx]
+            )
         return score
 
-    def minimax(self, board, depth, alpha=-float('inf'), beta=float('inf'), is_maximizing=True):
-        """
-        Minimax algorithm with alpha-beta pruning.
-        
-        Args:
-            board (chess.Board): The current board position
-            depth (int): Current depth in the search tree
-            alpha (float): Alpha value for pruning
-            beta (float): Beta value for pruning
-            is_maximizing (bool): Whether this is a maximizing node
-            
-        Returns:
-            float: The evaluation score for the best move
-        """
+        # ------------------------------------------------------------------
+    # Incremental delta evaluation (safe for en‑passant & castling)
+    # ------------------------------------------------------------------
+    def deltaEval(self, board: chess.Board, move: chess.Move, currentScore: int) -> int:
+        """Return the new evaluation after hypothetically playing *move*.
+           *board* is still in the pre‑move state when this is called."""
+        piece = board.piece_at(move.from_square)
+        colorFactor = 1 if piece.color == chess.BLACK else -1  # + for Black, – for White
 
-        key = self.compute_zobrist_hash(board)
-        if key in self.transposition_table:
-            entry = self.transposition_table[key]
-            if entry["depth"] >= depth:
-                return entry["value"]
+        # --- 1. remove the piece from its origin square ------------------------
+        fromIdx = move.from_square if piece.color == chess.WHITE \
+                  else chess.square_mirror(move.from_square)
+        currentScore -= colorFactor * (
+            self.pieceValues[piece.piece_type] + self.pieceTables[piece.piece_type][fromIdx]
+        )
 
-        
+        # --- 2. add the piece (or its promotion) on the destination square -----
+        promoType = move.promotion or piece.piece_type
+        toIdx = move.to_square if piece.color == chess.WHITE \
+                else chess.square_mirror(move.to_square)
+        currentScore += colorFactor * (
+            self.pieceValues[promoType] + self.pieceTables[promoType][toIdx]
+        )
+
+        # --- 3. handle captures (normal & en‑passant) --------------------------
+        if board.is_capture(move):
+            victimSq = move.to_square
+            if board.is_en_passant(move):  # captured pawn is behind the to‑square
+                victimSq += 8 if piece.color == chess.WHITE else -8
+
+            capturedType = board.piece_type_at(victimSq)
+            if capturedType is not None:  # <‑‑ guard: only update if a piece exists
+                vicIdx = victimSq if piece.color == chess.BLACK \
+                         else chess.square_mirror(victimSq)
+                currentScore -= colorFactor * (
+                    self.pieceValues[capturedType] + self.pieceTables[capturedType][vicIdx]
+                )
+
+        # --- 4. shift the rook in castling -------------------------------------
+        if board.is_castling(move):
+            rookFrom, rookTo = (
+                (move.to_square + 1, move.to_square - 1)   # king‑side
+                if chess.square_file(move.to_square) == 6  # to‑square file g
+                else (move.to_square - 2, move.to_square + 1)  # queen‑side
+            )
+            for sqFrom, sqTo in [(rookFrom, rookTo)]:
+                idxFrom = sqFrom if piece.color == chess.WHITE else chess.square_mirror(sqFrom)
+                idxTo   = sqTo   if piece.color == chess.WHITE else chess.square_mirror(sqTo)
+                currentScore -= colorFactor * (
+                    self.pieceValues[chess.ROOK] + self.pieceTables[chess.ROOK][idxFrom]
+                )
+                currentScore += colorFactor * (
+                    self.pieceValues[chess.ROOK] + self.pieceTables[chess.ROOK][idxTo]
+                )
+
+        return currentScore
+
+
+    # ------------------------------------------------------------------
+    # Move ordering helper
+    # ------------------------------------------------------------------
+    def orderMoves(self, board: chess.Board):
+        captures, quiets = [], []
+        for mv in board.legal_moves:
+            captures.append(mv) if board.is_capture(mv) else quiets.append(mv)
+        return captures + quiets
+
+    # ------------------------------------------------------------------
+    # Minimax with alpha‑beta pruning + incremental eval
+    # ------------------------------------------------------------------
+    def minimax(self, board: chess.Board, depth: int, score: int, alpha: int, beta: int, maximizing: bool) -> int:
+        key = self.computeZobristHash(board)
+        entry = self.transpositionTable.get(key)
+        if entry and entry["depth"] >= depth:
+            return entry["value"]
 
         if depth == 0 or board.is_game_over():
-            score = self.evaluate_position(board)
-            self.transposition_table[key] = {"depth": depth, "value": score}
+            self.transpositionTable[key] = {"depth": depth, "value": score}
             return score
-            
-        if is_maximizing:
-            max_eval = -float('inf')
-            for move in board.legal_moves:
-                board.push(move)
-                eval = self.minimax(board, depth - 1, alpha, beta, False)
+
+        if maximizing:
+            best = -float("inf")
+            for mv in self.orderMoves(board):
+                nextScore = self.deltaEval(board, mv, score)
+                board.push(mv)
+                best = max(best, self.minimax(board, depth - 1, nextScore, alpha, beta, False))
                 board.pop()
-                max_eval = max(max_eval, eval)
-                alpha = max(alpha, eval)
+                alpha = max(alpha, best)
                 if beta <= alpha:
                     break
-            self.transposition_table[key] = {"depth": depth, "value": max_eval}
-            return max_eval
         else:
-            min_eval = float('inf')
-            for move in board.legal_moves:
-                board.push(move)
-                eval = self.minimax(board, depth - 1, alpha, beta, True)
+            best = float("inf")
+            for mv in self.orderMoves(board):
+                nextScore = self.deltaEval(board, mv, score)
+                board.push(mv)
+                best = min(best, self.minimax(board, depth - 1, nextScore, alpha, beta, True))
                 board.pop()
-                min_eval = min(min_eval, eval)
-                beta = min(beta, eval)
+                beta = min(beta, best)
                 if beta <= alpha:
                     break
-            self.transposition_table[key] = {"depth": depth, "value": min_eval}
-            return min_eval
-    # def quiesce(self, board, alpha, beta):
-    #     currentPosition = self.evaluate_position(board);
 
-    #     if (currentPosition >= beta):
-    #         return beta
-    #     if (alpha < currentPosition):
-    #         alpha = currentPosition
+        self.transpositionTable[key] = {"depth": depth, "value": best}
+        return best
 
-    #     for move in board.legal_moves:
-    #         if (board.is_capture)
+    # ------------------------------------------------------------------
+    # Root search
+    # ------------------------------------------------------------------
+    def findBestMove(self, board: chess.Board) -> chess.Move:
+        self.transpositionTable.clear()
+        rootScore = self.fullEvaluate(board)
+        bestMove, bestVal = None, -float("inf")
+        alpha, beta = -float("inf"), float("inf")
 
-    def order_moves(self, board):
-        captures = []
-        non_captures = []
-        for move in board.legal_moves:
-            if board.is_capture(move):
-                captures.append(move)
-            else:
-                non_captures.append(move)
-        return captures + non_captures
-
-    def find_best_move(self, board):
-        """
-        Find the best move using minimax with alpha-beta pruning.
-        
-        Args:
-            board (chess.Board): The current board position
-            
-        Returns:
-            chess.Move: The best move found
-        """
-        self.transposition_table.clear()
-        best_move = None
-        best_value = -float('inf')
-        alpha = -float('inf')
-        beta = float('inf')
-        moves = self.order_moves(board)
-
-        
-        for move in moves:
-            board.push(move)
-            board_value = self.minimax(board, self.depth - 1, alpha, beta, False)
+        for mv in self.orderMoves(board):
+            scoreAfter = self.deltaEval(board, mv, rootScore)
+            board.push(mv)
+            val = self.minimax(board, self.depth - 1, scoreAfter, alpha, beta, False)
             board.pop()
-            
-            if board_value > best_value:
-                best_value = board_value
-                best_move = move
-                
-            alpha = max(alpha, best_value)
-            
-        return best_move
+            if val > bestVal:
+                bestVal, bestMove = val, mv
+            alpha = max(alpha, bestVal)
+        return bestMove
 
-    
 
-# Example usage
+# ----------------------- Example usage -------------------------------
 if __name__ == "__main__":
-    # Create a new board
-    board = chess.Board()
-    
-    # Initialize the engine
+    gameBoard = chess.Board()
     engine = ChessEngine(depth=5)
-    
 
-    #0 represents white, 1 represents black
-    currentPlayer = 0;
-    while not board.is_game_over():
-        if currentPlayer == 0:
-            print("Current board position:")
-            print(board)
-            # Human move loops until a valid move is entered
-            while True:
-                human_move_str = input("Enter your move (e.g., 'e2e4'): ")
-                try:
-                    # Convert the string to a Move object
-                    human_move_obj = chess.Move.from_uci(human_move_str)
-                    
-                    if human_move_obj in board.legal_moves:
-                        board.push(human_move_obj)
-                        break
-                    else:
-                        print("Invalid move. Try again.")
-                        continue
-                except ValueError:
-                    # If the string cannot be parsed as a UCI move, prompt again
-                    print("Invalid move format. Try again.")
-                    continue
+    sideToMove = 0  # 0 = human (white), 1 = engine (black)
 
+    while not gameBoard.is_game_over():
+        print(gameBoard)
+        if sideToMove == 0:
+            userInp = input("Enter your move (e.g. e2e4): ")
+            try:
+                uciMove = chess.Move.from_uci(userInp.strip())
+                if uciMove in gameBoard.legal_moves:
+                    gameBoard.push(uciMove)
+                    sideToMove = 1
+                else:
+                    print("Illegal move. Try again.")
+            except ValueError:
+                print("Bad UCI string. Try again.")
         else:
-            # Computer move
-            best_move = engine.find_best_move(board)
-            board.push(best_move)
+            best = engine.findBestMove(gameBoard)
+            print(f"Engine plays {best}")
+            gameBoard.push(best)
+            sideToMove = 0
 
-        currentPlayer = 1 - currentPlayer
-
-    if board.is_checkmate():
-        print("Checkmate! Game over.")
-    elif board.is_stalemate():
-        print("Stalemate! Game over.")
-    else:
-        print("Game over. It's a draw.")
-    
-    print("Current board position:")
-    print(board)
-    
-    # Select the best move
-    best_move = engine.find_best_move(board)
-    
-    print(f"Best move: {best_move}")
-    board.push(best_move)
-    
-    print("Board after best move:")
-    print(board) 
+    print(gameBoard.result())

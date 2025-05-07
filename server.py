@@ -16,7 +16,7 @@ def best_move():
     fen = data['fen']
 
     board = chess.Board(fen)
-    best_move = engine.find_best_move(board)
+    best_move = engine.findBestMove(board)
 
     return jsonify({'bestMove': best_move.uci()})
 
