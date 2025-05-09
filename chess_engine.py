@@ -1,6 +1,7 @@
 import chess
 import chess.polyglot 
 import random
+import time
 
 # --- Piece‑square tables (kept in snake_case because they are constants) ---
 king_mid = [0, 0, 0, 0, 0, 0, 0, 0,
@@ -300,23 +301,40 @@ class ChessEngine:
     # ------------------------------------------------------------------
     # Root search
     # ------------------------------------------------------------------
-    def findBestMove(self, board: chess.Board) -> chess.Move:
+    def findBestMove(self, board: chess.Board, maxTime: float = 5.0) -> chess.Move:
+        # 0. opening‑book shortcut
         bm = self.bookMove(board)
-        if bm:                       # ① book hit → instant reply
+        if bm:
             return bm
-        # self.transpositionTable.clear()
-        rootScore = self.fullEvaluate(board)
-        bestMove, bestVal = None, -float("inf")
-        alpha, beta = -float("inf"), float("inf")
 
-        for mv in self.orderMoves(board):
-            scoreAfter = self.deltaEval(board, mv, rootScore)
-            board.push(mv)
-            val = self.minimax(board, self.depth - 1, scoreAfter, alpha, beta, False)
-            board.pop()
-            if val > bestVal:
-                bestVal, bestMove = val, mv
-            alpha = max(alpha, bestVal)
+        start    = time.perf_counter()
+        rootEval = self.fullEvaluate(board)
+        depth    = 1
+        bestMove = None                      # fallback if time is ultra‑short
+
+        # 1‑ply, 2‑ply, 3‑ply … until the clock says “stop”
+        while True:
+            if time.perf_counter() - start >= maxTime:
+                break                       # don’t start a new iteration
+
+            self.transpositionTable.clear()  # keeps PV ordering, bounds memory
+            bestVal  = -float("inf")
+            alpha, beta = -float("inf"), float("inf")
+
+            for mv in self.orderMoves(board):           # PV/killer first
+                scoreAfter = self.deltaEval(board, mv, rootEval)
+                board.push(mv)
+                val = self.minimax(board, depth - 1, scoreAfter,
+                                alpha, beta, False)
+                board.pop()
+
+                if val > bestVal:                       # new leader
+                    bestVal, bestMove = val, mv
+                alpha = max(alpha, bestVal)
+
+            depth += 1                                  # search one ply deeper
+        print(depth)
+        # guaranteed to have something from the deepest fully‑searched ply
         return bestMove
 
 
