@@ -1,65 +1,30 @@
-# Chess Game with Python Engine & React UI
+# Chess engine and web app
 
-This project combines a Python chess engine with a React frontend to create an interactive chess game.
+This program creates a chess wep app iteration in which the user can play against a chess bot.
 
-## Project Structure
+## Running the code
 
-- `chess_engine.py`: Core chess engine with minimax algorithm and alpha-beta pruning
-- `app.py`: Flask API server that exposes the chess engine functionality
-- `frontend/`: React application for the user interface
+### To run the code, begin by installing the required dependencies:
 
-## Setup Instructions
+pip install -r requirements.txt
 
-### Backend (Python)
+### Then, activate the back and front ends:
 
-1. Install the required Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+python server.py
 
-2. Start the Flask API server:
-   ```bash
-   python app.py
-   ```
-   The server will run on http://localhost:5000
+python -m http.server 3000
 
-### Frontend (React)
+### Finally, go to a web browser and navigate to http://127.0.0.1:3000
 
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
+## Overview
 
-2. Install the required npm packages:
-   ```bash
-   npm install
-   ```
+The basis for this engine is a recursive algorithm that makes use of minimax and alpha-beta prunning to find the optimal move.
+The engine uses many different techniques to try and speed up the recursion, allowing it to go as deeply as possible. Each search
+is capped at a few seconds (this can be changed) but usually makes it 7-8 layers ahead. In the early game, the engine will use book
+moves for as long as possible to ensure an effective opening. From there, the engine uses a iterative scoring changes between boards,
+transposition tables running on zobrist hashing, move ordering using MvvLva (Most valuable victim, Least valuable attacker) move odering
+and alpha beta pruning to make the engine more efficient. I estmiate the bot's elo at around 1700 as it can consistently beat the 1600
+chess bots on chess.com, but loses to the 2000.
 
-3. Start the React development server:
-   ```bash
-   npm start
-   ```
-   The frontend will run on http://localhost:3000
 
-## How to Play
 
-1. Open http://localhost:3000 in your web browser
-2. The chess board will appear with the initial position
-3. Click on a piece to select it
-4. Click on a highlighted square to move the selected piece
-5. Use the "Get Engine Move" button to let the computer make a move
-6. Use the "Reset Game" button to start a new game
-
-## Features
-
-- Interactive chess board with piece movement
-- Legal move highlighting
-- Last move highlighting
-- Game state display (check, checkmate, stalemate)
-- Computer opponent using minimax algorithm
-
-## Technologies Used
-
-- Backend: Python, Flask, python-chess
-- Frontend: React, react-chessboard
-- Algorithms: Minimax with alpha-beta pruning

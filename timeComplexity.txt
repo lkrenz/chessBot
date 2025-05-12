@@ -1,0 +1,11 @@
+While this engine employs many techniques to speed up the searching, it's efficiency is still on the order of exponential while 
+running on the minimax algorithm. However, while relying on book moves, the engine runs in constant time. The book moves run off of the same
+essentially constant time hashing algorithm as the rest of the board (linear with number of squares to instantiate, constant to update), and use 
+hash tables to extract optimal moves extremely efficiently. However, once the player deviates from book moves, the engine slows down massively.
+Alpha beta prunning, made more efficient through MvvLva move ordering (prioritizes searching through moves that involve capturing valuable pieces
+with cheaper onces) helps to speed up the algorithm but doesn't change the order of the time complexity. One of the big break throughs that I made
+was using an iterative board evaluation function. Originally, the board's state was rescored on every node in the search, but the new method simply
+updates the score with the change in piece positions, allowing the algorithm to skip a bunch of unecessary calculations. However, even with these 
+improvements, the engine is still confronted with a terrifying exponential time complexity. The original, just minimax search tree expands by around
+35 times each layer, and allowed the engine to reach a depth of four. However, with the improvements I was able to make, the bot goes around 
+seven moves deep, often reaching 8, within the time bounds.
