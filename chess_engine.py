@@ -3,7 +3,7 @@ import chess.polyglot
 import random
 import time
 
-# --- Piece‑square tables (kept in snake_case because they are constants) ---
+# Piece square tables
 king_mid = [0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
@@ -58,19 +58,19 @@ pawn_mid = [0, 0, 0, 0, 0, 0, 0, 0,
             5, 5, 5, -10, -10, 5, 5, 5,
             0, 0, 0, 0, 0, 0, 0, 0]
 
-
+# Set random seed for testing purposes
 random.seed(42)
 
 
 class ChessEngine:
-    """Simple minimax chess engine with incremental evaluation and camelCase naming."""
 
+    # presets values for piece exchanges
     mvvLvaScore = [[0]*7 for _ in range(7)]
     for victim in range(1, 7):
         for attacker in range(1, 7):
             mvvLvaScore[victim][attacker] = 10_000 * victim - attacker
 
-    # --- static tables ---
+    # Preset values for pieces
     pieceValues = {
         chess.PAWN: 100,
         chess.KNIGHT: 320,
@@ -89,11 +89,12 @@ class ChessEngine:
         chess.KING: king_mid,
     }
 
+    # Innitializes a new chessBot
     def __init__(self, depth=5, bookPath="Perfect2023.bin"):
         self.depth = depth
         self.transpositionTable: dict[int, dict] = {}
 
-        # Random numbers only needed if you fall back to custom hashing
+        # Instantiates zobrist hashing
         self.zobristTable = {
             (piece_type, color, square): random.getrandbits(64)
             for piece_type in range(1, 7)
@@ -102,67 +103,61 @@ class ChessEngine:
         }
         self.zobristSide = random.getrandbits(64)
 
+        # Opens book
         try:
             self.book = chess.polyglot.open_reader(bookPath) 
         except FileNotFoundError:
             self.book = None
 
+    # Method to return book move
     def bookMove(self, board):
         if not self.book:
             return None
         try:
             return self.book.weighted_choice(board).move
-        except IndexError:           # out‑of‑book
+        except IndexError:           
             return None
         
-  
-
-
-    # ------------------------------------------------------------------
-    # Hashing
-    # ------------------------------------------------------------------
-    def computeZobristHash(self, board: chess.Board) -> int:
-        """Return a 64‑bit hash for *board* using python‑chess' incremental key."""
+    # Hashes current board using a zobrist hash
+    def computeZobristHash(self, board: chess.Board):
         try:
-            return board.transposition_key()  # fast path (python‑chess ≥ 1.8)
+            return board.transposition_key()
         except AttributeError:
-            # Fallback for old versions
             return hash(board._transposition_key())
 
-    # ------------------------------------------------------------------
-    # Incremental evaluation helpers
-    # ------------------------------------------------------------------
-    def fullEvaluate(self, board: chess.Board) -> int:
-        """Full evaluation of *board* (material + piece‑square tables)."""
+    # Innitial evaluation function used for base board
+    def fullEvaluate(self, board: chess.Board):
         score = 0
         for sq in chess.SQUARES:
             piece = board.piece_at(sq)
             if not piece:
                 continue
-            factor = 1 if piece.color == chess.BLACK else -1  # engine score: positive = Black
+
+            # Engine plays black uses negative for white piece evaluation
+            factor = 1 if piece.color == chess.BLACK else -1
             idx = sq if piece.color == chess.WHITE else chess.square_mirror(sq)
             score += factor * (
                 self.pieceValues[piece.piece_type] + self.pieceTables[piece.piece_type][idx]
             )
         return score
 
-        # ------------------------------------------------------------------
-    # Incremental delta evaluation (safe for en‑passant & castling)
-    # ------------------------------------------------------------------
-    def deltaEval(self, board: chess.Board, move: chess.Move, currentScore: int) -> int:
-        """Return the new evaluation after hypothetically playing *move*.
-           *board* is still in the pre‑move state when this is called."""
+    # Evaluates new boards by calculating the difference before and after a move
+    def deltaEval(self, board: chess.Board, move: chess.Move, currentScore: int):
+        
+        # Finds original piece
         piece = board.piece_at(move.from_square)
         colorFactor = 1 if piece.color == chess.BLACK else -1  # + for Black, – for White
 
-        # --- 1. remove the piece from its origin square ------------------------
+        # Makes the move
         fromIdx = move.from_square if piece.color == chess.WHITE \
                   else chess.square_mirror(move.from_square)
+
+        # Removes score representing old position
         currentScore -= colorFactor * (
             self.pieceValues[piece.piece_type] + self.pieceTables[piece.piece_type][fromIdx]
         )
 
-        # --- 2. add the piece (or its promotion) on the destination square -----
+        # Moves piece to new square
         promoType = move.promotion or piece.piece_type
         toIdx = move.to_square if piece.color == chess.WHITE \
                 else chess.square_mirror(move.to_square)
@@ -170,10 +165,10 @@ class ChessEngine:
             self.pieceValues[promoType] + self.pieceTables[promoType][toIdx]
         )
 
-                # --- 3. handle captures (normal & en‑passant) --------------------------
+        # Handles capture conditions
         if board.is_capture(move):
             victimSq = move.to_square
-            if board.is_en_passant(move):                       # pawn is behind target
+            if board.is_en_passant(move):                       
                 victimSq += 8 if piece.color == chess.WHITE else -8
 
             capturedType = board.piece_type_at(victimSq)
@@ -181,21 +176,18 @@ class ChessEngine:
                 vicIdx = victimSq if piece.color == chess.BLACK \
                          else chess.square_mirror(victimSq)
 
-                # Remove the victim’s old contribution
-                #   Before: score += (–colorFactor) * value
-                #   After : score += 0
-                #   Δ      = –(–colorFactor) * value = +colorFactor * value
+                # Handles removal of victim piece
                 currentScore += colorFactor * (
                     self.pieceValues[capturedType] +
                     self.pieceTables[capturedType][vicIdx]
                 )
 
-        # --- 4. shift the rook in castling -------------------------------------
+        # Handles castling case
         if board.is_castling(move):
             rookFrom, rookTo = (
-                (move.to_square + 1, move.to_square - 1)   # king‑side
-                if chess.square_file(move.to_square) == 6  # to‑square file g
-                else (move.to_square - 2, move.to_square + 1)  # queen‑side
+                (move.to_square + 1, move.to_square - 1)   
+                if chess.square_file(move.to_square) == 6  
+                else (move.to_square - 2, move.to_square + 1)  
             )
             for sqFrom, sqTo in [(rookFrom, rookTo)]:
                 idxFrom = sqFrom if piece.color == chess.WHITE else chess.square_mirror(sqFrom)
@@ -210,17 +202,19 @@ class ChessEngine:
         return currentScore
 
 
-    # ------------------------------------------------------------------
-    # Move ordering helper
-    # ------------------------------------------------------------------
+    # Orders moves to improve alpha-beta prunning
     def orderMoves(self, board, ttMove=None):
+
+        # Prioritizes capture moves
         captures, quiets = [], []
+
+        # Starts Mvvlva move ordering
         for mv in board.legal_moves:
-            if mv == ttMove:                 # PV move first
+            if mv == ttMove:                 
                 return [mv] + list(board.legal_moves)
             (captures if board.is_capture(mv) else quiets).append(mv)
 
-        # Sort only the (small) capture list by MVV‑LVA
+        # Sorts capture list by MvvLva
         captures.sort(key=lambda m: self.mvvLvaScore[
             board.piece_type_at(m.to_square) or chess.PAWN]
             [board.piece_at(m.from_square).piece_type], reverse=True)
@@ -229,60 +223,85 @@ class ChessEngine:
 
 
     
-        # ------------------------------------------------------------------
-    # Move‑scoring helper  (TT first  ➜  MVV‑LVA  ➜  rest) 
-    # ------------------------------------------------------------------
+    # Uses MvvLva to score moves
     def scoreMove(self, board, move, ttMove):
-        if move == ttMove:                       # principal‑variation move
+
+        # Returns the transposition table move
+        if move == ttMove:            
             return 1_000_000
 
+
+        # Handles capture case
         if board.is_capture(move):
-            # --- find the real victim square (handles en‑passant) -----
             victimSq = move.to_square
             if board.is_en_passant(move):
                 piece = board.piece_at(move.from_square)
                 victimSq += 8 if piece.color == chess.WHITE else -8
 
-            victim   = board.piece_type_at(victimSq) or chess.PAWN  # safety belt
+            victim   = board.piece_type_at(victimSq) or chess.PAWN
             attacker = board.piece_at(move.from_square).piece_type
             return 500_000 + self.mvvLvaScore[victim][attacker]
 
-        return 0   # quiet move
+        return 0
 
 
-    # ------------------------------------------------------------------
-    # Minimax with alpha‑beta pruning + incremental eval
-    # ------------------------------------------------------------------
-        # -------- Minimax with alpha‑beta --------
+    # Uses a minimax algorithm with alpha beta pruning to find best move
     def minimax(self, board, depth, score, alpha, beta, maximizing, ply=0):
+
+        # Gets current hash
         key = self.computeZobristHash(board)
 
+        # Checks for transposition move
         ttEntry = self.transpositionTable.get(key)
         if ttEntry and ttEntry["depth"] >= depth:
             return ttEntry["value"]
-        ttMove = ttEntry.get("move") if ttEntry else None   # safe even if key missing
+        ttMove = ttEntry.get("move") if ttEntry else None
 
 
-        if depth == 0 or board.is_game_over():
+        # Handles leaves in the tree
+        if board.is_game_over():                       
+            if board.is_checkmate():
+                # Each side prioritizes not getting checkmated and trying to checkmate
+                val = (1000000 - ply) if not maximizing else (-1000000 + ply)
+            else:
+                # Stalemate is neutral
+                val = 0
+            self.transpositionTable[key] = {"depth": depth, "value": val}
+            return val
+
+        # Reaches maximum depth
+        if depth == 0:                                
             self.transpositionTable[key] = {"depth": depth, "value": score}
             return score
 
-        bestMove = None                          # NEW ➌ track best move
+
+        # Main body of minimax
+        bestMove = None                          
         if maximizing:
             best = -float("inf")
-            for mv in self.orderMoves(board, ttMove):      # NEW ➋ pass ttMove
+            for mv in self.orderMoves(board, ttMove):      
+
+                # Incremental hash used to find next board value
                 nextScore = self.deltaEval(board, mv, score)
                 board.push(mv)
+
+                # Recurses to try next board
                 val = self.minimax(board, depth-1, nextScore, alpha, beta, False, ply+1)
+
+                # Removes last move
                 board.pop()
                 if val > best:
                     best, bestMove = val, mv
+
+                # Checks to see if pruning is possible
                 alpha = max(alpha, best)
                 if beta <= alpha:
                     break
         else:
+            # Similar idea to max, but tries to minimize the possible score
+            # to represent the oponent mimizing computer score
             best = float("inf")
-            for mv in self.orderMoves(board, ttMove):      # NEW ➋
+            for mv in self.orderMoves(board, ttMove):      
                 nextScore = self.deltaEval(board, mv, score)
                 board.push(mv)
                 val = self.minimax(board, depth-1, nextScore, alpha, beta, True, ply+1)
@@ -293,75 +312,49 @@ class ChessEngine:
                 if beta <= alpha:
                     break
 
-        # store PV move for future probes
+        # Store calculated move in transposition table
         self.transpositionTable[key] = {"depth": depth, "value": best, "move": bestMove}
         return best
 
 
-    # ------------------------------------------------------------------
-    # Root search
-    # ------------------------------------------------------------------
-    def findBestMove(self, board: chess.Board, maxTime: float = 5.0) -> chess.Move:
-        # 0. opening‑book shortcut
+    # Uses minimax to find the best move in a current position
+    def findBestMove(self, board: chess.Board, maxTime: float = 2.0):
+
+        # Checks for book move
         bm = self.bookMove(board)
         if bm:
             return bm
 
+        # Constants
         start    = time.perf_counter()
         rootEval = self.fullEvaluate(board)
         depth    = 1
-        bestMove = None                      # fallback if time is ultra‑short
+        bestMove = None                      
 
-        # 1‑ply, 2‑ply, 3‑ply … until the clock says “stop”
+        # Iterates deeper until time limit is exceeded by last layer
         while True:
             if time.perf_counter() - start >= maxTime:
-                break                       # don’t start a new iteration
+                break                       
 
-            self.transpositionTable.clear()  # keeps PV ordering, bounds memory
+            self.transpositionTable.clear()  
+
+            # Values for alpha beta pruning
             bestVal  = -float("inf")
             alpha, beta = -float("inf"), float("inf")
 
-            for mv in self.orderMoves(board):           # PV/killer first
+            # Starts the recursive process
+            for mv in self.orderMoves(board):           
                 scoreAfter = self.deltaEval(board, mv, rootEval)
                 board.push(mv)
                 val = self.minimax(board, depth - 1, scoreAfter,
                                 alpha, beta, False)
                 board.pop()
 
-                if val > bestVal:                       # new leader
+                if val > bestVal:                       
                     bestVal, bestMove = val, mv
                 alpha = max(alpha, bestVal)
 
-            depth += 1                                  # search one ply deeper
+            depth += 1                                  
         print(depth)
-        # guaranteed to have something from the deepest fully‑searched ply
+        
         return bestMove
-
-
-# ----------------------- Example usage -------------------------------
-if __name__ == "__main__":
-    gameBoard = chess.Board()
-    engine = ChessEngine(depth=5)
-
-    sideToMove = 0  # 0 = human (white), 1 = engine (black)
-
-    while not gameBoard.is_game_over():
-        print(gameBoard)
-        if sideToMove == 0:
-            userInp = input("Enter your move (e.g. e2e4): ")
-            try:
-                uciMove = chess.Move.from_uci(userInp.strip())
-                if uciMove in gameBoard.legal_moves:
-                    gameBoard.push(uciMove)
-                    sideToMove = 1
-                else:
-                    print("Illegal move. Try again.")
-            except ValueError:
-                print("Bad UCI string. Try again.")
-        else:
-            best = engine.findBestMove(gameBoard)
-            print(f"Engine plays {best}")
-            gameBoard.push(best)
-            sideToMove = 0
-
-    print(gameBoard.result())
